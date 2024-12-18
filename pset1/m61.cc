@@ -18,6 +18,7 @@ struct m61_memory_buffer {
 };
 
 static m61_memory_buffer default_buffer;
+static m61_statistics global_stats;
 
 
 m61_memory_buffer::m61_memory_buffer() {
@@ -43,17 +44,36 @@ m61_memory_buffer::~m61_memory_buffer() {
 ///    return either `nullptr` or a pointer to a unique allocation.
 ///    The allocation request was made at source code location `file`:`line`.
 
+/*
+    char, int
+    [0,0][1,4]
+
+*/
 void* m61_malloc(size_t sz, const char* file, int line) {
     (void) file, (void) line;   // avoid uninitialized variable warnings
+    size_t alignment = alignof(std::max_align_t);
+    default_buffer.pos = (default_buffer.pos + alignment - 1) & ~(alignment - 1);
+
     // Your code here.
     if (default_buffer.pos + sz > default_buffer.size) {
         // Not enough space left in default buffer for allocation
+        global_stats.nfail++;
+        global_stats.fail_size += sz;
         return nullptr;
     }
+
 
     // Otherwise there is enough space; claim the next `sz` bytes
     void* ptr = &default_buffer.buffer[default_buffer.pos];
     default_buffer.pos += sz;
+    
+    global_stats.nactive++;
+    global_stats.active_size += sz;
+    global_stats.ntotal++;
+    global_stats.total_size += sz;
+    global_stats.heap_min = std::min(global_stats.heap_min, reinterpret_cast<uintptr_t>(ptr));
+    global_stats.heap_max = std::max(global_stats.heap_max, reinterpret_cast<uintptr_t>(ptr));
+
     return ptr;
 }
 
@@ -68,6 +88,10 @@ void m61_free(void* ptr, const char* file, int line) {
     // avoid uninitialized variable warnings
     (void) ptr, (void) file, (void) line;
     // Your code here. The handout code does nothing!
+    if (ptr == nullptr) {
+        return;
+    }
+    global_stats.nactive--;
 }
 
 
@@ -92,11 +116,12 @@ void* m61_calloc(size_t count, size_t sz, const char* file, int line) {
 ///    Return the current memory statistics.
 
 m61_statistics m61_get_statistics() {
+    return global_stats;
     // Your code here.
     // The handout code sets all statistics to enormous numbers.
-    m61_statistics stats;
-    memset(&stats, 255, sizeof(m61_statistics));
-    return stats;
+    // m61_statistics stats;
+    // memset(&stats, 255, sizeof(m61_statistics));
+    // return stats;
 }
 
 

@@ -4,7 +4,9 @@
 #include <cstring>
 #include <cinttypes>
 #include <cstddef>
+
 // Check for correct allocation alignment.
+#include <iostream>
 
 int main() {
     double* ptr = (double*) m61_malloc(sizeof(double));
